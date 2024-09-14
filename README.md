@@ -14,3 +14,9 @@ The aim is to implement the following workflow using Langgraph
 3. Reflects on the results
 4. Uses feedback to improve quality
 5. Provides the results to the Plan Agent for it to give it to the user
+
+### Tasks that can be done by the Tool Agent :
+1. Maths
+2. News
+3. Stock Prices
+4. Weather Report 
