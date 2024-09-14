@@ -1,5 +1,5 @@
 import streamlit as st
-from plan_tool_workflow import ToolAgent, process_query  # imports from the file 
+from plan_tool_workflow import ToolAgent, process_query_with_feedback  # imports from the file 
 
 def main():
     # customizing the ui
