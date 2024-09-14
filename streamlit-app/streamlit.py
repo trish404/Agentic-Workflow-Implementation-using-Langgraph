@@ -28,20 +28,20 @@ def main():
     tool_agent = ToolAgent(weather_api_key, news_api_key, alpha_vantage_api_key, wolfram_api_key)
     # upon click of the process button 
     if st.button("Process Query"):
-    if query:
-        try:
+        if query:
+            try:
             
-            with st.spinner('Processing your query...'):
+                with st.spinner('Processing your query...'):
                 # feedback loop
-                results = process_query_with_feedback(query, tool_agent)
+                    results = process_query_with_feedback(query, tool_agent)
 
-            st.write("### Results:")
-            for result in results:
-                st.write(result)
-        except Exception as e:
-            st.error(f"An error occurred: {e}")
-    else:
-        st.write("Please enter a query to process.")
+                st.write("### Results:")
+                for result in results:
+                    st.write(result)
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
+        else:
+            st.write("Please enter a query to process.")
 
 if __name__ == "__main__":
     main()
