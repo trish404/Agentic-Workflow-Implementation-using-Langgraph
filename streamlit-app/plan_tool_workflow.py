@@ -1,36 +1,53 @@
 from transformers import pipeline
 import requests
+# plan agent 
 class PlanAgent:
     def __init__(self, query):
+        # initialization of class 
         self.query = query
+        # user query 
         self.sub_tasks = []
+        # subtasks of that particular query 
 
     def split_q(self):
-        # For simplicity, we split the tasks by period.
-        # This can be made more complex using NLP techniques to better understand the query.
-        self.sub_tasks = [task.strip() for task in self.query.split('.') if task.strip()]
+        # using NLP sentence tokenization method to divide the query by a full stop 
+        self.sub_tasks = [job.strip() for job in self.query.split('.') if job.strip()]
         return self.sub_tasks
 
-    def modify_t(self, index, new_task):
-        if 0 <= index < len(self.sub_tasks):
-            self.sub_tasks[index] = new_task
+    def modify_t(self, t_id, new):
+        # t_id = task's unique id/ index 
+        # function to modify already existing tasks in the list 
+        if 0 <= t_id < len(self.sub_tasks):
+            # if a valid task id then it is modified
+            self.sub_tasks[t_id] = new
+            print(f"Task with id: {t_id}, is modified to: {new}")
+        else:
+            # else an error is thrown due to wrong indexing 
+            print("Please enter a valid task ID")
+
+    def delete_t(self, t_id):
+        # function to delete an already existing task 
+        if 0 <= t_id < len(self.sub_tasks):
+            deleted_task = self.sub_tasks.pop(t_id) # popping from list since we use a stack like structure 
+            print(f"Task with id: {t_id}, is deleted: {deleted_task}")
+        else:
+            print("Please enter a valid task ID")
 
     def add_t(self, new_task):
+        # function to add a new task
         self.sub_tasks.append(new_task)
+        print(f"Added new task: {new_task}")
 
-    def delete_t(self, index):
-        if 0 <= index < len(self.sub_tasks):
-            del self.sub_tasks[index]
 
-# Function to integrate PlanAgent and ToolAgent
+# function to integrate both agents in the same workflow 
 def process_query(query, tool_agent):
-    # Initialize the PlanAgent with the query
+    # plan agent is used to process the query 
     plan_agent = PlanAgent(query)
 
-    # Split the query into sub-tasks
+    # query is split into all the tasks 
     sub_tasks = plan_agent.split_q()
 
-    # Process each task using the ToolAgent
+    # Tool Agent processes each sub task 
     results = []
     for task in sub_tasks:
         result = tool_agent.solve_task(task)
@@ -41,13 +58,16 @@ def process_query(query, tool_agent):
 
 class ToolAgent:
     def __init__(self, weather_api_key, news_api_key, alpha_vantage_api_key, wolfram_api_key):
+        # all the api keys are stored in the secrets 
         self.weather_api_key = weather_api_key
         self.news_api_key = news_api_key
         self.alpha_vantage_api_key = alpha_vantage_api_key
         self.wolfram_api_key = wolfram_api_key
         self.summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
+        # pipeline is used for orderly processing of the queries / subtasks 
 
     def solve_task(self, task):
+        # tool agent can do the following tasks there is future scope for more 
         if "weather" in task.lower():
             return self.get_weather(task)
         elif "summarize" in task.lower() or "news" in task.lower():
@@ -60,16 +80,17 @@ class ToolAgent:
             return f"No specific tool found for the task: '{task}'"
 
     def get_weather(self, task):
-        location = task.split("in")[-1].strip()
-        url = f"http://api.openweathermap.org/data/2.5/weather?q={location}&appid={self.weather_api_key}&units=metric"
+        # to get the weather report 
+        loc = task.split("in")[-1].strip() # used to extract location from the query 
+        url = f"http://api.openweathermap.org/data/2.5/weather?q={loc}&appid={self.weather_api_key}&units=metric"
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
             weather = data['weather'][0]['description']
-            temperature = data['main']['temp']
-            return f"The weather in {location} is {weather} with a temperature of {temperature}°C."
+            temp = data['main']['temp'] # temperature found using api 
+            return f"The weather in {loc} is {weather} with a temperature of {temp}°C."
         else:
-            return f"Could not fetch weather data for {location}. Error: {response.status_code} - {response.text}"
+            return f"Could not fetch weather data for {location}. Please try again later"
 
     def summarize_news(self, task):
         url = f"https://newsapi.org/v2/top-headlines?country=us&apiKey={self.news_api_key}"
@@ -78,22 +99,22 @@ class ToolAgent:
             data = response.json()
             articles = data.get('articles', [])
             if articles:
-                article_text = articles[0].get('content') or articles[0].get('description', '')
-                if article_text:
-                    summary = self.summarizer(article_text, max_length=50, min_length=25, do_sample=False)
+                txt = articles[0].get('content') or articles[0].get('description', '')
+                if txt: # article text is used to summarize 
+                    summary = self.summarizer(txt, max_length=50, min_length=25, do_sample=False)
                     return summary[0]['summary_text']
                 else:
                     return "The fetched news article did not contain any text to summarize."
             else:
                 return "No news articles available to summarize."
         else:
-            return f"Could not fetch news articles. Error: {response.status_code} - {response.text}"
+            return f"Could not fetch news articles."
 
     def get_stock_price(self, task):
         company_to_symbol = {'Apple': 'AAPL', 'Google': 'GOOGL', 'Microsoft': 'MSFT'}
         company_name = task.split("of")[-1].strip().split()[0]
         symbol = company_to_symbol.get(company_name, company_name)
-        
+        # using symbols to convert since the api doesnt actually use the company names 
         url = f"https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol={symbol}&interval=1min&apikey={self.alpha_vantage_api_key}"
         response = requests.get(url)
         if response.status_code == 200:
@@ -101,11 +122,11 @@ class ToolAgent:
             try:
                 latest_time = list(data['Time Series (1min)'].keys())[0]
                 price = data['Time Series (1min)'][latest_time]['1. open']
-                return f"The current stock price of {symbol} is ${price}."
+                return f"The current stock price of {company_name} is ${price}."
             except KeyError:
-                return f"Could not find stock symbol {symbol}."
+                return f"Could not find stock symbol {company_name}."
         else:
-            return f"Could not fetch stock data for {symbol}. Error: {response.status_code} - {response.text}"
+            return f"Could not fetch stock data for {company_name}."
 
     def calculate_expression(self, task):
         expression = task.split("Calculate")[-1].strip()
@@ -116,6 +137,7 @@ class ToolAgent:
             'output': 'JSON',
             'appid': self.wolfram_api_key
         }
+        # convert the textual interpretation to numerical to obtain the results 
         response = requests.get(url, params=params)
         if response.status_code == 200:
             try:
@@ -128,24 +150,23 @@ class ToolAgent:
             except (KeyError, IndexError):
                 return "Could not understand the mathematical expression."
         else:
-            return f"Could not fetch the result for the mathematical expression. Error: {response.status_code} - {response.text}"
+            return f"Could not fetch the result for the mathematical expression."
 
     def reflect(self, task, result):
         print(f"Reflection on task '{task}': {result}")
 
-# Example usage of the integrated workflow
+# main function to integrate the workflow 
 def main():
-    # Initialize ToolAgent with your API keys
+    # api keys 
     weather_api_key = "YOUR_OPENWEATHERMAP_API_KEY"
     news_api_key = "YOUR_NEWSAPI_KEY"
     alpha_vantage_api_key = "YOUR_ALPHA_VANTAGE_API_KEY"
     wolfram_api_key = "YOUR_WOLFRAM_ALPHA_API_KEY"
     
     tool_agent = ToolAgent(weather_api_key, news_api_key, alpha_vantage_api_key, wolfram_api_key)
-    
+    # sample query i used for debugging 
     query = "Find the weather in New York. Summarize the top news headlines. Check the stock prices of Apple. Calculate the square root of 16."
     
-    # Process the query and get results
     results = process_query(query, tool_agent)
 
     # Print the results
