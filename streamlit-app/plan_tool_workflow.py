@@ -37,22 +37,34 @@ class PlanAgent:
         # function to add a new task
         self.sub_tasks.append(new_task)
         print(f"Added new task: {new_task}")
-
-
 # function to integrate both agents in the same workflow 
-def process_query(query, tool_agent):
+def process_query_with_feedback(query, tool_agent, max_iterations=3):
     # plan agent is used to process the query 
     plan_agent = PlanAgent(query)
-
     # query is split into all the tasks 
     sub_tasks = plan_agent.split_q()
-
-    # Tool Agent processes each sub task 
     results = []
-    for task in sub_tasks:
-        result = tool_agent.solve_task(task)
-        tool_agent.reflect(task, result)
-        results.append(result)
+
+    iteration = 0
+    while iteration < max_iterations and sub_tasks:
+        new_sub_tasks = []
+        for task in sub_tasks:
+            # Tool Agent processes each sub task 
+            result = tool_agent.solve_task(task)
+            tool_agent.reflect(task, result)
+            results.append(result)
+
+            # feedback is done by checking if it needs any refinement 
+            if "could not" in result.lower():
+                # if result shows failure another try is made 
+                refined_task = f"Reattempt: {task}"
+                new_sub_tasks.append(refined_task)
+            else:
+                # follow up tasks if it is successful
+                pass
+        
+        sub_tasks = new_sub_tasks
+        iteration += 1
 
     return results
 
@@ -169,7 +181,6 @@ def main():
     
     results = process_query(query, tool_agent)
 
-    # Print the results
     for result in results:
         print(result)
 
