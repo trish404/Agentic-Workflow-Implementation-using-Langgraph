@@ -1,3 +1,5 @@
+from transformers import pipeline
+
 class PlanAgent:
     def __init__(self, query):
         self.query = query
