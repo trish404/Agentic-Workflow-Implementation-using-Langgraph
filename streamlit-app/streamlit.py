@@ -1,5 +1,6 @@
 import streamlit as st
-from plan_tool_workflow import PlanAgent, ToolAgent # importing the agents for the workflow 
+from plan_tool_workflow import PlanAgent, ToolAgent
+
 # custom pink ui as my preference 
 st.markdown("""
     <style>
@@ -17,39 +18,34 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-plan_agent = PlanAgent()
 
+plan_agent = PlanAgent()
 tool_agent = ToolAgent()
+
 
 st.title("AI Task Processor")
 st.markdown("<h3 style='color: #ff69b4;'>Enter your query and let the AI process it into actionable tasks.</h3>", unsafe_allow_html=True)
+
 
 user_query = st.text_area("Enter your query:", height=100)
 
 if st.button("Process Query"):
     if user_query:
-        # loading spinner used while processing
+	# loading spinner used while processing
         with st.spinner("Processing..."):
-            # PlanAgent splits the user query into sub-queries or smaller taks 
-            sub_tasks = plan_agent.split(user_query)
+            #  PlanAgent splits the user query into sub-queries or smaller tasks using lang graph
+            graph = plan_agent.create_graph(user_query)
 
             # each sub query processed seperayely 
-            refined_tasks = []
-            for sub_task in sub_tasks:
-                # skip empty sub-tasks
-                if not sub_task.strip():
-                    continue
-                
-                # solving using Tool Agent 
-                response = tool_agent.execute(sub_task)
-                
-                # refinement of sub-task using feedback loop 
-                refined_task = plan_agent.refine(sub_task, response)
-                refined_tasks.append(refined_sub_task)
+            for node in graph.nodes:
+             
+                Answer = tool_agent.execute(node.content)
+                # refinement of the answer 
+                plan_agent.refine(node, Answer)
 
-        
+      
         st.header("Results:")
-        for idx, task in enumerate(refined_sub_tasks):
-            st.write(f"{task}")
+        for node in graph.nodes:
+            st.write(node.content)
     else:
         st.write("Please enter a query to start the workflow.")
