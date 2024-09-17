@@ -1,59 +1,62 @@
 import openai
 import streamlit as st
+from langgraph import LangGraph, Node  # Assuming langgraph is installed
 
 class ToolAgent:
     def __init__(self):
-        # api key present in streamlit secrets 
+        # api key in the secrets 
         openai.api_key = st.secrets["openai"]["api_key"]
 
-    def execute(self, sub_task):
+    def execute(self, task):
         try:
-            response = openai.ChatCompletion.create(
+            answer = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": "You are a knowledgeable assistant."}, # letting the ai know its roll 
-                    {"role": "user", "content": sub_task}
+                    {"role": "system", "content": "You are a knowledgeable assistant."}, # defining the role of the AI 
+                    {"role": "user", "content": task}
                 ],
                 max_tokens=100,       
-                temperature=0.7       # to control randomness 
+                temperature=0.7       # randomness in output
             )
 
-            return response.choices[0].message['content'].strip()
+            return answer.choices[0].message['content'].strip()
         except Exception as e:
             return f"Error executing sub-task: {str(e)}"
 
 class PlanAgent:
-    def __init__(self):
-        pass
+    def create_graph(self, query):
+        # language graph from the query
+        graph = LangGraph()
+        # query into sub-tasks and turned into nodes
+        sub_tasks = self.split(query)
+        for task in sub_tasks:
+            # each sub-task as a node in the graph
+            graph.add_node(Node(task))
+        return graph
 
     def split(self, query):
-        # splitting the user query into sub-tasks using basic NLP sentence tokenozation logic 
+        # basic NLP sentence tokenozation
         sub_tasks = query.split('. ')
         return [task.strip() for task in sub_tasks if task.strip()]
 
-    def refine(self, sub_task, answer):
-        # checking the quality of response 
+    def refine(self, node, answer):
         quality = self.analyze_quality(answer)
         
         if quality == "good":
-            return f"{sub_task} (Refined with positive feedback: {answer})"
-        elif quality == "less_information":
-            new_task = f"{sub_task}. Please provide more details or examples."
-            return f"{new_task} (Refined with feedback: {answer})"
+            node.content += f" (Refined with good feedback: {answer})"
+        elif quality == "missing_info":
+            node.content += f". Please provide more details for a better answer. (Refined with feedback: {answer})"
         elif quality == "irrelevant":
-            new_task = f"Clarify the following: {sub_task}"
-            return f"{new_task} (Refined with feedback: {answer})"
+            node.content = f"Clarify the following for a more accurate answer: {node.content} (Refined with feedback: {answer})"
         else:
-            # default branch
-            return f"{sub_task} (Refined with feedback: {answer})"
+            node.content += f" (Refined with feedback: {answer})"
     
     def analyze_quality(self, answer):
         if len(answer.split()) < 10:
-            # shport answers are considered bad 
-            return "less_information"
+            # if answer is too short it might be missing information
+            return "missing_info"
         elif "not sure" in answer.lower() or "irrelevant" in answer.lower():
-            # not correct
             return "irrelevant"
         else:
-            # default return if it passes the two cases
+            # if it passes both criteria it is considered good
             return "good"
