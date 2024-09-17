@@ -1,8 +1,9 @@
 import streamlit as st
-from plan_tool_workflow.py import PlanAgent, ToolAgent
+from plan_tool_workflow import PlanAgent, ToolAgent
+import openai
 
-# Set your OpenAI API key
-openai.api_key = 'your-openai-api-key'
+# Retrieve the OpenAI API key from Streamlit secrets
+openai.api_key = st.secrets["openai_api_key"]
 
 # Initialize PlanAgent
 plan_agent = PlanAgent()
