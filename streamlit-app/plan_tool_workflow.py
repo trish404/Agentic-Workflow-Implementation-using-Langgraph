@@ -60,3 +60,12 @@ class PlanAgent:
         else:
             # if it passes both criteria it is considered good
             return "good"
+    def add_task(self, graph, new_task):
+        graph.add_node(Node(new_task))
+    
+    def modify_task(self, node, modified_content):
+        node.content = modified_content
+
+    def delete_task(self, graph, node):
+        graph.remove_node(node)
+
