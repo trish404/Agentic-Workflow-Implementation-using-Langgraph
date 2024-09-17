@@ -1,48 +1,55 @@
 import streamlit as st
-from plan_tool_workflow import PlanAgent, ToolAgent
-import openai
+from plan_tool_workflow import PlanAgent, ToolAgent # importing the agents for the workflow 
+# custom pink ui as my preference 
+st.markdown("""
+    <style>
+    .stApp {
+        background-color: #ffe6f2; /* Light pink background */
+    }
+    .stTextInput > div > div > input {
+        background-color: #ffffff; /* White background for input field */
+        color: #333333; /* Text color */
+    }
+    .stButton > button {
+        background-color: #ff69b4; /* Hot pink button color */
+        color: white;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-# Retrieve the OpenAI API key from Streamlit secrets
-openai.api_key = st.secrets["openai_api_key"]
-
-# Initialize PlanAgent
 plan_agent = PlanAgent()
 
-# Initialize ToolAgent
 tool_agent = ToolAgent()
 
-# Streamlit app
-st.title("LangGraph Workflow Implementation")
+st.title("AI Task Processor")
+st.markdown("<h3 style='color: #ff69b4;'>Enter your query and let the AI process it into actionable tasks.</h3>", unsafe_allow_html=True)
 
-# User query input
-user_query = st.text_input("Enter your query:")
+user_query = st.text_area("Enter your query:", height=100)
 
-if user_query:
-    # Step 1: PlanAgent splits the user query into sub-tasks
-    st.header("Outer Loop: PlanAgent Execution")
-    st.write("Splitting query into sub-tasks...")
-    sub_tasks = plan_agent.split(user_query)
-    st.write("Sub-tasks:", sub_tasks)
+if st.button("Process Query"):
+    if user_query:
+        # loading spinner used while processing
+        with st.spinner("Processing..."):
+            # PlanAgent splits the user query into sub-queries or smaller taks 
+            sub_tasks = plan_agent.split(user_query)
 
-    # Step 2: Iterative Refinement
-    refined_sub_tasks = []
-    for sub_task in sub_tasks:
-        st.write(f"Refining sub-task: {sub_task}")
+            # each sub query processed seperayely 
+            refined_tasks = []
+            for sub_task in sub_tasks:
+                # skip empty sub-tasks
+                if not sub_task.strip():
+                    continue
+                
+                # solving using Tool Agent 
+                response = tool_agent.execute(sub_task)
+                
+                # refinement of sub-task using feedback loop 
+                refined_task = plan_agent.refine(sub_task, response)
+                refined_tasks.append(refined_sub_task)
+
         
-        # Solve each sub-task using ToolAgent
-        st.header("Inner Loop: ToolAgent Execution")
-        st.write("Agent Dispatch & Tool Retrieval...")
-        response = tool_agent.execute(sub_task)
-        st.write("Response:", response)
-        
-        # Modification, Deletion, Addition (if needed)
-        st.write("Iterative Refinement (Modification/Deletion/Addition)...")
-        refined_sub_task = plan_agent.refine(sub_task, response)
-        refined_sub_tasks.append(refined_sub_task)
-
-    # Final results
-    st.header("End Result")
-    st.write("All done! Refined sub-tasks:")
-    st.write(refined_sub_tasks)
-else:
-    st.write("Please enter a query to start the workflow.")
+        st.header("Results:")
+        for idx, task in enumerate(refined_sub_tasks):
+            st.write(f"{task}")
+    else:
+        st.write("Please enter a query to start the workflow.")
